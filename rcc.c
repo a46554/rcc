@@ -33,11 +33,17 @@ struct Token {
 };
 
 Token *g_token;
+char *user_input;
 
-void error(char *fmt, ...)
+void error_at(char *loc, char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
+	
+	int pos = loc - user_input;
+	fprintf(stderr, "%s\n", user_input);
+	fprintf(stderr, "%*s\n", pos, "");
+	fprintf(stderr, "^ ");	
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	exit(1);
@@ -54,14 +60,14 @@ bool cosume(char op)
 void expected(char op)
 {
 	if(g_token->kind != TK_RESERVED || g_token->str[0] != op)
-		error("Not %c", op);
+		error_at(g_token->str, "Not %c", op);
 	g_token = g_token->next;	
 }
 
 int expected_number(void)
 {
 	if(g_token->kind != TK_NUM)
-		error("Not number");
+		error_at(g_token->str, "Not number");
 	int val = g_token->val;
 	g_token = g_token->next;	
 	return val;
@@ -105,7 +111,7 @@ Token *tokenize(char *p)
 			continue;
 		}/* Add as NUM node */
 		
-		error("Error parsing");
+		error_at(g_token->str, "Error parsing");
 	}
 	
 	// Add the EOF node 
