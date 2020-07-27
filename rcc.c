@@ -17,6 +17,94 @@
 
 /* Ref:https://koshizuow.gitbook.io/compilerbook/calculator_level_language/step1 */
 
+/* Simple BNF for computing            */
+/* expr = mul ('+' mul || '-' mul )*   */
+/* mul = term ('*' term || '/' term )* */
+/* term = num | '(' expr ')'           */
+
+typedef enum {
+	ND_ADD,
+	ND_SUB,
+	ND_MUL,
+	ND_DIV.
+	ND_NUM
+} NodeKind;
+
+typedef struct Node Node;
+
+struct Node {
+	NodeKind kind,
+	Node *lhs,
+	Node *rhs,
+	int val,
+};
+
+Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
+{
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = kind;
+	node->lhs = lhs;
+	node->rhs = rhs;
+	return node;
+}
+
+Node *new_num_node(int val)
+{
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_NUM;
+	node->val = val;
+	return node;
+}
+(1+2) * 3
+
+/* expr = mul ('+' mul || '-' mul )*   */
+Node *expr()
+{
+	Node *node = mul();
+	
+	for(;;) // Did we reach the end node ?
+	{
+		if(cosume('+'))
+			node = new_node(ND_ADD, node, mul());
+		else if(cosume('-'))
+			node = new_node(ND_SUB, node, mul());
+		else 
+			return node;
+	}	
+}
+
+
+/* mul = term ('*' term || '/' term )* */
+Node *mul()
+{
+	Node *node = term();
+	
+	for(;;) // Did we reach the end node ?
+	{
+		if(cosume('*'))
+			node = new_node(ND_MUL, node, term());
+		else if(cosume('/'))
+			node = new_node(ND_DIV, node, term());
+		else 
+			return node;
+	}	
+}
+
+/* term = num | '(' expr ')'           */
+Node *term()
+{
+	if(cosume('('))
+	{
+		Node *node = expr();
+		expected(')')
+		return node;
+	}
+	else
+	{
+		return *new_num_node(expected_number());
+	}	
+}
+
 typedef enum {
 	TK_RESERVED,
 	TK_NUM,
