@@ -26,18 +26,29 @@ typedef enum {
 	ND_ADD,
 	ND_SUB,
 	ND_MUL,
-	ND_DIV.
+	ND_DIV,
 	ND_NUM
 } NodeKind;
 
 typedef struct Node Node;
 
 struct Node {
-	NodeKind kind,
-	Node *lhs,
-	Node *rhs,
-	int val,
+	NodeKind kind;
+	Node *lhs;
+	Node *rhs;
+	int val;
 };
+
+// Function delcaretion
+bool cosume(char op);
+void expected(char op);
+int expected_number(void);
+
+Node *expr(void);
+Node *term(void);
+Node *mul(void);
+
+void gen(Node *node);
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
 {
@@ -55,10 +66,10 @@ Node *new_num_node(int val)
 	node->val = val;
 	return node;
 }
-(1+2) * 3
 
+// (1+2) * 3
 /* expr = mul ('+' mul || '-' mul )*   */
-Node *expr()
+Node *expr(void)
 {
 	Node *node = mul();
 	
@@ -75,7 +86,7 @@ Node *expr()
 
 
 /* mul = term ('*' term || '/' term )* */
-Node *mul()
+Node *mul(void)
 {
 	Node *node = term();
 	
@@ -91,17 +102,17 @@ Node *mul()
 }
 
 /* term = num | '(' expr ')'           */
-Node *term()
+Node *term(void)
 {
 	if(cosume('('))
 	{
 		Node *node = expr();
-		expected(')')
+		expected(')');
 		return node;
 	}
 	else
 	{
-		return *new_num_node(expected_number());
+		return new_num_node(expected_number());
 	}	
 }
 
@@ -188,7 +199,7 @@ Token *tokenize(char *p)
 			continue;
 		}/* Skip space */
 		
-		if (*p == '+' || *p =='-') {
+		if (strchr("+-*/()", *p)) {
 			cur = new_token(TK_RESERVED, cur, p++);
 			continue;
 		}/* Add as RESERVE node */
@@ -214,28 +225,23 @@ int main(int argc, char ** argv)
 		return 1;
 	}
 	
+	user_input = argv[1];
+	
 	// Tokenize the input args
-	g_token = tokenize(argv[1]);
+	g_token = tokenize(user_input);
+	
+	// Generate syntax tree 
+	Node *node = expr();
 	
 	printf(".intel_syntax noprefix\n");
 	printf(".global main\n");
 	printf("main:\n");
 	
-	// Expected start with number
-	printf("mov rax, %d\n", expected_number());
+	// Walking through syntax tree and generate command
+	gen(node);
 	
-	while(!at_eof())
-	{
-		if(cosume('+')){
-			printf("add rax, %d\n", expected_number());
-			continue;
-		}	
-		
-		expected('-');
-		printf("sub rax, %d\n", expected_number());
-	}
-	
-	printf("ret\n");
+	printf(" pop rax\n");	
+	printf(" ret\n");
 	
 	return 0;
 }
@@ -243,7 +249,7 @@ int main(int argc, char ** argv)
 void gen(Node *node)
 {
 	if(node->kind == ND_NUM) {
-		printf("push %d\n", node->val);
+		printf(" push %d\n", node->val);
 		return;
 	}
 	
@@ -251,23 +257,23 @@ void gen(Node *node)
 	gen(node->rhs);
 	
 	// POP top 2 element and do compute
-	printf("pop rdi\n");
-	printf("pop rax\n");
+	printf(" pop rdi\n");
+	printf(" pop rax\n");
 	
 	switch(node->kind)
 	{
 		case ND_ADD:
-			printf("add rax, rdi\n");
+			printf(" add rax, rdi\n");
 			break;
 		case ND_SUB:
-			printf("sub rax, rdi\n");
+			printf(" sub rax, rdi\n");
 			break;
 		case ND_MUL:
-			printf("imul rax, rdi\n");
+			printf(" imul rax, rdi\n");
 			break;
-		case ND_MUL:
-			printf("cpo\n");
-			printf("idiv rdi\n");
+		case ND_DIV:
+			printf(" cqo\n");
+			printf(" idiv rdi\n");
 			break;
 	}
 	
