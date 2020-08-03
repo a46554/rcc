@@ -239,3 +239,38 @@ int main(int argc, char ** argv)
 	
 	return 0;
 }
+
+void gen(Node *node)
+{
+	if(node->kind == ND_NUM) {
+		printf("push %d\n", node->val);
+		return;
+	}
+	
+	gen(node->lhs);
+	gen(node->rhs);
+	
+	// POP top 2 element and do compute
+	printf("pop rdi\n");
+	printf("pop rax\n");
+	
+	switch(node->kind)
+	{
+		case ND_ADD:
+			printf("add rax, rdi\n");
+			break;
+		case ND_SUB:
+			printf("sub rax, rdi\n");
+			break;
+		case ND_MUL:
+			printf("imul rax, rdi\n");
+			break;
+		case ND_MUL:
+			printf("cpo\n");
+			printf("idiv rdi\n");
+			break;
+	}
+	
+	// PUSH back final result 
+	printf("push rax\n");
+}
