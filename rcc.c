@@ -47,6 +47,7 @@ int expected_number(void);
 Node *expr(void);
 Node *term(void);
 Node *mul(void);
+Node *unary(void);
 
 void gen(Node *node);
 
@@ -84,21 +85,31 @@ Node *expr(void)
 	}	
 }
 
-
-/* mul = term ('*' term || '/' term )* */
+/* mul = unary ('*' unary || '/' unary )* */
 Node *mul(void)
 {
-	Node *node = term();
+	Node *node = unary();
 	
 	for(;;) // Did we reach the end node ?
 	{
 		if(cosume('*'))
-			node = new_node(ND_MUL, node, term());
+			node = new_node(ND_MUL, node, unary());
 		else if(cosume('/'))
-			node = new_node(ND_DIV, node, term());
+			node = new_node(ND_DIV, node, unary());
 		else 
 			return node;
 	}	
+}
+
+/* unary = ('+' || '-')? term -> represent +3 or -2 case*/
+Node *unary(void)
+{
+	if(cosume('+'))
+		return term();// no need for i = +3
+	else if(cosume('-'))
+		return new_node(ND_SUB, new_num_node(0), term()); // Rplace -2 to 0 - 2 
+	
+	return term();
 }
 
 /* term = num | '(' expr ')'           */
