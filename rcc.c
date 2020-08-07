@@ -18,8 +18,13 @@
 /* Ref:https://koshizuow.gitbook.io/compilerbook/calculator_level_language/step1 */
 
 /* Simple BNF for computing            */
-/* expr = mul ('+' mul || '-' mul )*   */
-/* mul = term ('*' term || '/' term )* */
+/* Operation code piority: () -> +a,-b -> a*b, a/b -> a+b,a-b->>,<,>=,<= -> ==,!= */
+/* expr = relational */
+/* equality = relational ('==' relational | '!='relational)*   */
+/* relational = add ('>'add | '<'add | '>=' add| '<='add)*  */
+/* add = mul ('+' mul || '-' mul )*   */
+/* mul = unary ('*' unary || '/' unary )* */
+/* unary = ('+' || '-')? term          */
 /* term = num | '(' expr ')'           */
 
 typedef enum {
@@ -27,6 +32,10 @@ typedef enum {
 	ND_SUB,
 	ND_MUL,
 	ND_DIV,
+	ND_EQ, // ==
+	ND_NE, // !=
+	ND_LT, // <
+	ND_LE, // <=
 	ND_NUM
 } NodeKind;
 
@@ -40,14 +49,17 @@ struct Node {
 };
 
 // Function delcaretion
-bool cosume(char op);
-void expected(char op);
+bool cosume(char *op);
+void expected(char *op);
 int expected_number(void);
 
 Node *expr(void);
-Node *term(void);
+Node *equality(void);
+Node *relational(void);
+Node *add(void);
 Node *mul(void);
 Node *unary(void);
+Node *term(void);
 
 void gen(Node *node);
 
@@ -68,21 +80,63 @@ Node *new_num_node(int val)
 	return node;
 }
 
-// (1+2) * 3
-/* expr = mul ('+' mul || '-' mul )*   */
+/* expr = equality */
 Node *expr(void)
 {
-	Node *node = mul();
+	return equality();
+}
+
+/* equality = relational ('==' relational | '!='relational)*   */
+Node *equality(void)
+{
+	Node *node = relational();
 	
 	for(;;) // Did we reach the end node ?
 	{
-		if(cosume('+'))
+		if(cosume("=="))
+			node = new_node(ND_EQ, node, relational());
+		if(cosume("!="))
+			node = new_node(ND_NE, node, relational());
+		else 
+			return node;
+	}
+}
+
+/* relational = add ('<'add | '<='add | '>' add| '>='add)*  */
+Node *relational(void)
+{
+	Node *node = add();
+	
+	for(;;)
+	{
+		if(cosume("<"))
+			node = new_node(ND_LT, node, add());
+		else if(cosume("<="))
+			node = new_node(ND_LE, node, add());
+		else if(cosume(">"))
+			node = new_node(ND_LT, add(), node);
+		else if(cosume(">="))
+			node = new_node(ND_LE, add(), node);
+		else 
+			return node;
+	}
+}
+
+// (1+2) * 3
+/* add = mul ('+' mul || '-' mul )*   */
+Node *add(void)
+{
+	Node *node = mul();
+	
+	for(;;)
+	{
+		if(cosume("+"))
 			node = new_node(ND_ADD, node, mul());
-		else if(cosume('-'))
+		else if(cosume("-"))
 			node = new_node(ND_SUB, node, mul());
 		else 
 			return node;
-	}	
+	}
 }
 
 /* mul = unary ('*' unary || '/' unary )* */
@@ -90,23 +144,23 @@ Node *mul(void)
 {
 	Node *node = unary();
 	
-	for(;;) // Did we reach the end node ?
+	for(;;)
 	{
-		if(cosume('*'))
+		if(cosume("*"))
 			node = new_node(ND_MUL, node, unary());
-		else if(cosume('/'))
+		else if(cosume("/"))
 			node = new_node(ND_DIV, node, unary());
 		else 
 			return node;
-	}	
+	}
 }
 
 /* unary = ('+' || '-')? term -> represent +3 or -2 case*/
 Node *unary(void)
 {
-	if(cosume('+'))
+	if(cosume("+"))
 		return term();// no need for i = +3
-	else if(cosume('-'))
+	else if(cosume("-"))
 		return new_node(ND_SUB, new_num_node(0), term()); // Rplace -2 to 0 - 2 
 	
 	return term();
@@ -115,10 +169,10 @@ Node *unary(void)
 /* term = num | '(' expr ')'           */
 Node *term(void)
 {
-	if(cosume('('))
+	if(cosume("("))
 	{
 		Node *node = expr();
-		expected(')');
+		expected(")");
 		return node;
 	}
 	else
@@ -140,6 +194,7 @@ struct Token {
 	Token *next;
 	int val;
 	char *str;
+	int len;
 };
 
 Token *g_token;
@@ -159,17 +214,22 @@ void error_at(char *loc, char *fmt, ...)
 	exit(1);
 }
 
-bool cosume(char op)
+bool cosume(char *op)
 {
-	if(g_token->kind != TK_RESERVED || g_token->str[0] != op)
+	if(g_token->kind != TK_RESERVED ||
+	   strlen(op) != g_token->len ||
+	   memcmp(g_token->str, op, g_token->len))
 		return false;
+		
 	g_token = g_token->next;	
 	return true;
 }
 
-void expected(char op)
+void expected(char *op)
 {
-	if(g_token->kind != TK_RESERVED || g_token->str[0] != op)
+	if(g_token->kind != TK_RESERVED ||
+	   strlen(op) != g_token->len ||
+	   memcmp(g_token->str, op, g_token->len))
 		error_at(g_token->str, "Not %c", op);
 	g_token = g_token->next;	
 }
@@ -188,13 +248,19 @@ bool at_eof(void)
 	return g_token->kind == TK_EOF;	
 }
 
-Token *new_token(TokenKind kind, Token *cur, char *str)
+Token *new_token(TokenKind kind, Token *cur, char *str, int len)
 {
 	Token *tok = calloc(1, sizeof(Token));
 	tok->kind = kind;
 	tok->str = str;
+	tok->len = len;
 	cur->next =tok;
 	return tok;
+}
+
+bool startswitch(char *p, char *q)
+{
+	return memcmp(p, q, strlen(q)) == 0;
 }
 
 Token *tokenize(char *p)
@@ -210,14 +276,24 @@ Token *tokenize(char *p)
 			continue;
 		}/* Skip space */
 		
-		if (strchr("+-*/()", *p)) {
-			cur = new_token(TK_RESERVED, cur, p++);
+		/* Multi-letter operation code */
+		if(startswitch(p, "==") || startswitch(p, "!=") ||
+		   startswitch(p, ">=") || startswitch(p, "<=")) {
+			cur = new_token(TK_RESERVED, cur, p, 2);
+			p += 2;
+			continue;
+		}/* Add as RESERVE node */
+		
+		if (strchr("+-*/()<>", *p)) { // Did p been fund at string 1?
+			cur = new_token(TK_RESERVED, cur, p++, 1);
 			continue;
 		}/* Add as RESERVE node */
 		
 		if (isdigit(*p)) {
-			cur = new_token(TK_NUM, cur, p); // Since the strtol will automatic update p, don't need p++ here.
+			cur = new_token(TK_NUM, cur, p, 0); // Since the strtol will automatic update p, don't need p++ here.
+			char *q = p;
 			cur->val = strtol(p, &p,10);
+			cur->len = p - q; // How many digits 
 			continue;
 		}/* Add as NUM node */
 		
@@ -225,7 +301,7 @@ Token *tokenize(char *p)
 	}
 	
 	// Add the EOF node 
-	new_token(TK_EOF, cur, p);
+	new_token(TK_EOF, cur, p, 0);
 	return head.next;
 }
 
@@ -285,6 +361,26 @@ void gen(Node *node)
 		case ND_DIV:
 			printf(" cqo\n");
 			printf(" idiv rdi\n");
+			break;
+		case ND_EQ:
+			printf(" cmp rax, rdi\n");
+			printf(" sete al\n");
+			printf(" movzb rax, al\n");
+			break;
+		case ND_NE:
+			printf(" cmp rax, rdi\n");
+			printf(" setne al\n");
+			printf(" movzb rax, al\n");
+			break;
+		case ND_LT:
+			printf(" cmp rax, rdi\n");
+			printf(" setl al\n");
+			printf(" movzb rax, al\n");
+			break;
+		case ND_LE:		
+			printf(" cmp rax, rdi\n");
+			printf(" setle al\n");
+			printf(" movzb rax, al\n");
 			break;
 	}
 	
