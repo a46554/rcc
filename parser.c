@@ -28,6 +28,19 @@ bool cosume(char *op)
 	return true;
 }
 
+Token *cosume_ident(void)
+{
+	Token *tok;
+	if(g_token->kind != TK_IDENT ||
+	   1 != g_token->len ||
+	   !(g_token->str[0]<='z' && g_token->str[0]>= 'a'))
+		return NULL;
+		
+	tok = g_token;
+	g_token = g_token->next;	
+	return tok;
+}
+
 void expected(char *op)
 {
 	if(g_token->kind != TK_RESERVED ||
@@ -102,6 +115,16 @@ void tokenize(char *p)
 			continue;
 		}/* Add as NUM node */
 		
+		if(*p <= 'z' && *p >= 'a') {
+			cur = new_token(TK_IDENT, cur, p++, 1);
+			continue;			
+		}/* Add as TK_IDENT node */
+		
+		if(ispunct(*p)) {
+			cur = new_token(TK_RESERVED, cur, p++, 1);
+			continue;			
+		}/* Add as TK_RESERVED node */
+			
 		error_at(g_token->str, "Error parsing");
 	}
 	

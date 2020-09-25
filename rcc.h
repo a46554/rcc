@@ -11,6 +11,7 @@
 /* Tokenizer section */
 typedef enum {
 	TK_RESERVED,
+	TK_IDENT,
 	TK_NUM,
 	TK_EOF
 } TokenKind;
@@ -26,6 +27,8 @@ struct Token {
 };
 
 bool cosume(char *op);
+Token *cosume_ident(void);
+bool at_eof(void);
 void expected(char *op);
 int expected_number(void);
 void tokenize(char *p);
@@ -40,7 +43,9 @@ typedef enum {
 	ND_NE, // !=
 	ND_LT, // <
 	ND_LE, // <=
-	ND_NUM
+	ND_NUM,
+	ND_ASSIGN,
+	ND_LVAR
 } NodeKind;
 
 typedef struct Node Node;
@@ -50,9 +55,12 @@ struct Node {
 	Node *lhs;
 	Node *rhs;
 	int val;
+	int offset;
 };
 
+Node *stmt(void);
 Node *expr(void);
+Node *assign(void);
 Node *equality(void);
 Node *relational(void);
 Node *add(void);
@@ -61,5 +69,8 @@ Node *unary(void);
 Node *term(void);
 
 void gen(Node *node);
+void program(void);
+
+Node* g_code[100];
 
 #endif

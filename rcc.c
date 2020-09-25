@@ -23,16 +23,26 @@ int main(int argc, char ** argv)
 	tokenize(argv[1]);
 	
 	// Generate syntax tree 
-	Node *node = expr();
+	program();
 	
 	printf(".intel_syntax noprefix\n");
 	printf(".global main\n");
 	printf("main:\n");
+		
+	/* Reserve 26 variable mem spcae */
+	printf(" push rbp\n");
+	printf(" mov rbp, rsp\n");
+	printf(" sub rsp, 208\n");
 	
 	// Walking through syntax tree and generate command
-	gen(node);
+	for(int i=0;g_code[i];i++)
+	{
+		gen(g_code[i]);
+		printf(" pop rax\n");
+	}
 	
-	printf(" pop rax\n");	
+	printf(" mov rsp, rbp\n");
+	printf(" pop rbp\n");	
 	printf(" ret\n");
 	
 	return 0;

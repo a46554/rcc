@@ -2,7 +2,10 @@
 
 /* Simple BNF for computing            */
 /* Operation code piority: () -> +a,-b -> a*b, a/b -> a+b,a-b->>,<,>=,<= -> ==,!= */
-/* expr = relational */
+/* program = stmt* */
+/* stmt = expr ";" */
+/* expr = assign */
+/* assign = equality ("=" assign)?  */
 /* equality = relational ('==' relational | '!='relational)*   */
 /* relational = add ('>'add | '<'add | '>=' add| '<='add)*  */
 /* add = mul ('+' mul || '-' mul )*   */
@@ -28,19 +31,44 @@ Node *new_num_node(int val)
 	return node;
 }
 
-/* expr = equality */
+void program(void)
+{
+	int i =0;
+	while(!at_eof()) // Walk throught all token till the end 
+		g_code[i++] = stmt();
+	g_code[i] = NULL;
+}
+
+/* stmt = expr ";" */
+Node *stmt() {
+	Node *node = expr();
+	expected(";");
+	return node;
+}
+
+/* expr = assign */
 Node *expr(void)
 {
-	return equality();
+	return assign();
 }
+
+/* assign = equality ("=" assign)?*/
+Node *assign(void)
+{
+	Node *node = equality();
+
+	if(cosume("="))
+		node = new_node(ND_ASSIGN, node, assign());
+	return node;
+}
+
 
 /* equality = relational ('==' relational | '!='relational)*   */
 Node *equality(void)
 {
 	Node *node = relational();
 	
-	for(;;) // Did we reach the end node ?
-	{
+	for(;;) { 
 		if(cosume("=="))
 			node = new_node(ND_EQ, node, relational());
 		if(cosume("!="))
@@ -54,9 +82,8 @@ Node *equality(void)
 Node *relational(void)
 {
 	Node *node = add();
-	
-	for(;;)
-	{
+
+	for(;;) {
 		if(cosume("<"))
 			node = new_node(ND_LT, node, add());
 		else if(cosume("<="))
@@ -76,8 +103,7 @@ Node *add(void)
 {
 	Node *node = mul();
 	
-	for(;;)
-	{
+	for(;;)	{/* Handle muitlple add condition e.g. 1+2-3 */
 		if(cosume("+"))
 			node = new_node(ND_ADD, node, mul());
 		else if(cosume("-"))
@@ -85,6 +111,7 @@ Node *add(void)
 		else 
 			return node;
 	}
+	
 }
 
 /* mul = unary ('*' unary || '/' unary )* */
@@ -92,8 +119,7 @@ Node *mul(void)
 {
 	Node *node = unary();
 	
-	for(;;)
-	{
+	for(;;)	{
 		if(cosume("*"))
 			node = new_node(ND_MUL, node, unary());
 		else if(cosume("/"))
@@ -117,6 +143,14 @@ Node *unary(void)
 /* term = num | '(' expr ')'           */
 Node *term(void)
 {
+	Token *tok = cosume_ident();
+	if(tok)
+	{
+		Node *node = calloc(1, sizeof(Node));
+		node->kind = ND_LVAR;
+		node->offset = (tok->str[0] - 'a' + 1) * 8;
+		return node;
+	}
 	if(cosume("("))
 	{
 		Node *node = expr();
@@ -129,11 +163,54 @@ Node *term(void)
 	}	
 }
 
+
+
+/*
+   | Return address | RBP
+   | a       |
+   | b       | RAX ( offset of b is 2)
+   
+   
+   1. Move RBP to RAX.
+   2. Sub RAX to get the memory address for variable.
+   3. Push RAX (The address of variable is store in RAX )
+*/
+void gen_lval(Node *node)
+{
+	if(node->kind != ND_LVAR)
+		fprintf(stderr, "%s\n", "ERROROOROROROROROROROROOR");
+	
+	printf("  mov rax, rbp\n");
+	printf("  sub rax, %d\n", node->offset);
+	printf("  push rax\n");
+}
+
 void gen(Node *node)
 {
-	if(node->kind == ND_NUM) {
-		printf(" push %d\n", node->val);
-		return;
+	switch (node->kind)
+	{
+		case ND_NUM:
+			printf(" push %d\n", node->val);
+			return;
+		break;
+		case ND_LVAR:
+			gen_lval(node);
+			printf(" pop rax\n");            // Get the variable address 
+			printf(" mov rax [rax]\n");      // Read from memory 
+			printf(" push rax\n");           // Push variable'vaule back 
+			return;
+		break;
+		case ND_ASSIGN:
+			gen_lval(node->lhs);
+			gen(node->rhs);
+			
+			printf(" pop rdi\n");  // RDI represent first paramemter
+			printf(" pop rax\n");  // RDI represent second paramemter
+			printf(" mov [rax], rdi\n"); // Save value to variable mem address
+			printf(" push rdi\n");
+			
+			return;
+		break;	
 	}
 	
 	gen(node->lhs);
