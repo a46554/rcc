@@ -26,12 +26,24 @@ struct Token {
 	int len;
 };
 
+typedef struct LVar LVar;
+
+struct LVar {
+	LVar *next;
+	char *name;
+	int len;
+	int offset;
+};
+
+LVar *locals;
+
 bool cosume(char *op);
 Token *cosume_ident(void);
 bool at_eof(void);
 void expected(char *op);
 int expected_number(void);
 void tokenize(char *p);
+LVar *find_lvar(Token *tok);
 
 /* Code gen section */
 typedef enum {

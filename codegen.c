@@ -148,7 +148,25 @@ Node *term(void)
 	{
 		Node *node = calloc(1, sizeof(Node));
 		node->kind = ND_LVAR;
-		node->offset = (tok->str[0] - 'a' + 1) * 8;
+		
+		LVar *lvar = find_lvar(tok);
+		
+		if(lvar) // Local variable name has been used.
+			node->offset = lvar->offset;
+		else
+		{
+			// Add to global LVar list
+			lvar = calloc(1, sizeof(LVar));
+			if(!locals)
+				locals = lvar;
+			
+			lvar->next = locals;
+			lvar->name = tok->str;
+			lvar->len = tok->len;
+			lvar->offset = locals->offset + 8;
+			node->offset = lvar->offset;
+			locals = lvar;
+		}	
 		return node;
 	}
 	if(cosume("("))
@@ -164,7 +182,6 @@ Node *term(void)
 }
 
 
-
 /*
    | Return address | RBP
    | a       |
@@ -178,7 +195,7 @@ Node *term(void)
 void gen_lval(Node *node)
 {
 	if(node->kind != ND_LVAR)
-		fprintf(stderr, "%s\n", "ERROROOROROROROROROROROOR");
+		fprintf(stderr, "%s %s\n", "ERROR in ", __FUNCTION__);
 	
 	printf("  mov rax, rbp\n");
 	printf("  sub rax, %d\n", node->offset);

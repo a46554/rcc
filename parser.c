@@ -31,9 +31,7 @@ bool cosume(char *op)
 Token *cosume_ident(void)
 {
 	Token *tok;
-	if(g_token->kind != TK_IDENT ||
-	   1 != g_token->len ||
-	   !(g_token->str[0]<='z' && g_token->str[0]>= 'a'))
+	if(g_token->kind != TK_IDENT)
 		return NULL;
 		
 	tok = g_token;
@@ -79,6 +77,14 @@ bool startswitch(char *p, char *q)
 	return memcmp(p, q, strlen(q)) == 0;
 }
 
+LVar *find_lvar(Token *tok)
+{
+	for(LVar *var=locals; var; var=var->next)
+		if(var->len == tok->len && !memcmp(var->name, tok->str, var->len))
+			return var;
+	return NULL;
+}
+
 void tokenize(char *p)
 {
 	Token head;
@@ -116,8 +122,16 @@ void tokenize(char *p)
 		}/* Add as NUM node */
 		
 		if(*p <= 'z' && *p >= 'a') {
-			cur = new_token(TK_IDENT, cur, p++, 1);
-			continue;			
+			char *start = p;
+			int len = 1;
+			
+			while(isalnum(*(++p)))
+				len++;
+
+			char *name = calloc(len, sizeof(char));
+			memcpy(name, start, len);
+			cur = new_token(TK_IDENT, cur, name, len);
+			continue;
 		}/* Add as TK_IDENT node */
 		
 		if(ispunct(*p)) {

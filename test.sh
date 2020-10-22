@@ -48,4 +48,6 @@ try 0 '1>=2;'
 try 2 'a=2;'
 try 123 'z=123;'
 
+try 123 'abc=123;'
+
 echo OK
