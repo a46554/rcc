@@ -3,7 +3,7 @@
 /* Simple BNF for computing            */
 /* Operation code piority: () -> +a,-b -> a*b, a/b -> a+b,a-b->>,<,>=,<= -> ==,!= */
 /* program = stmt* */
-/* stmt = expr ";" */
+/* stmt = expr ";" || return expr ";" */
 /* expr = assign */
 /* assign = equality ("=" assign)?  */
 /* equality = relational ('==' relational | '!='relational)*   */
@@ -39,9 +39,18 @@ void program(void)
 	g_code[i] = NULL;
 }
 
-/* stmt = expr ";" */
+/* stmt = expr ";" || return expr ";" */
 Node *stmt() {
-	Node *node = expr();
+	Node *node;
+	if(cosume_retrun())
+	{	
+		node = calloc(1, sizeof(Node));
+		node->kind = ND_RETURN;
+		node->lhs = expr();
+	}
+	else
+		node = expr();
+	
 	expected(";");
 	return node;
 }
@@ -228,6 +237,14 @@ void gen(Node *node)
 			
 			return;
 		break;	
+		case ND_RETURN:
+			gen(node->lhs);
+			printf(" pop rax\n");            // Get the return value 
+			printf(" mov rsp, rbp\n");
+			printf(" pop rbp\n");	
+			printf(" ret\n");
+			return;
+		break;
 	}
 	
 	gen(node->lhs);

@@ -3,6 +3,8 @@
 Token *g_token;
 char *user_input;
 
+#define is_alnum(c) ((c <= 'a' && c >= 'z') || (c <= 'A' && c >= 'Z') || (c <= '0' && c >= '9') || (c == '_'))
+
 void error_at(char *loc, char *fmt, ...)
 {
 	va_list ap;
@@ -22,6 +24,15 @@ bool cosume(char *op)
 	if(g_token->kind != TK_RESERVED ||
 	   strlen(op) != g_token->len ||
 	   memcmp(g_token->str, op, g_token->len))
+		return false;
+		
+	g_token = g_token->next;	
+	return true;
+}
+
+bool cosume_retrun(void)
+{
+	if(g_token->kind != TK_RETURN)
 		return false;
 		
 	g_token = g_token->next;	
@@ -120,6 +131,14 @@ void tokenize(char *p)
 			cur->len = p - q; // How many digits 
 			continue;
 		}/* Add as NUM node */
+		
+		if(strncmp(p, "return", 6) == 0 && !is_alnum(p[6]))
+		{
+			char name[6] = "retrun";
+			cur = new_token(TK_RETURN, cur, name, 6);
+			p+=6;
+			continue;			
+		}/* Add as TK_RETURN node */
 		
 		if(*p <= 'z' && *p >= 'a') {
 			char *start = p;

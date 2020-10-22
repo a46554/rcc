@@ -13,6 +13,7 @@ typedef enum {
 	TK_RESERVED,
 	TK_IDENT,
 	TK_NUM,
+	TK_RETURN,
 	TK_EOF
 } TokenKind;
 
@@ -41,6 +42,7 @@ bool cosume(char *op);
 Token *cosume_ident(void);
 bool at_eof(void);
 void expected(char *op);
+bool cosume_retrun(void);
 int expected_number(void);
 void tokenize(char *p);
 LVar *find_lvar(Token *tok);
@@ -57,7 +59,8 @@ typedef enum {
 	ND_LE, // <=
 	ND_NUM,
 	ND_ASSIGN,
-	ND_LVAR
+	ND_LVAR,
+	ND_RETURN
 } NodeKind;
 
 typedef struct Node Node;

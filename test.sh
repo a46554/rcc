@@ -50,4 +50,7 @@ try 123 'z=123;'
 
 try 123 'abc=123;'
 
+try 25 'return 25;'
+try 20 'return20;'
+
 echo OK
